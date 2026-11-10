@@ -32,14 +32,15 @@
     const world = app.createWorld(scene), visitor = world.avatar;
     const desiredCamera = new THREE.Vector3(), target = new THREE.Vector3();
     let frameInterval = 1000/30;
-    let hallPose, hallCameraActive = false, walkingFov = 65;
+    let hallPose, hallCameraActive = false, walkingFov = 65, hallFitKey = '';
     const t = key => app.I18N[state.lang][key] || key;
     const hasModal = () => dialogs.some(dialog => dialog.open);
     const canMove = () => started && !action && !hasModal() && !app.failed && !document.hidden;
 
     function toast(message) {
       $('toast').textContent = message; $('toast').classList.add('visible');
-      clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').classList.remove('visible'),2800);
+      $('zone').style.visibility = 'hidden';
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => { $('toast').classList.remove('visible'); $('zone').style.visibility = ''; },2800);
     }
     function persist() {
       if (!app.State.write(state) && !storageWarning) { storageWarning = true; toast(t('storageError')); }
@@ -76,14 +77,9 @@
       const width = Math.max(1,host.clientWidth), height = Math.max(1,host.clientHeight);
       renderer.setSize(width,height,false); camera.aspect = width/height;
       walkingFov = camera.aspect < 0.7 ? 65 : 58;
-      const rect = host.getBoundingClientRect();
-      const top = Math.max(document.querySelector('.header').getBoundingClientRect().bottom,$('zone').getBoundingClientRect().bottom)-rect.top+12;
-      const bottom = Math.min(...['.move-pad','.home-button','.practices','.walk-hint'].map(selector =>
-        document.querySelector(selector).getBoundingClientRect().top))-rect.top-14;
-      const safe = bottom > top+40
-        ? {left:.08,right:.92,top:top/height,bottom:bottom/height}
-        : {left:.08,right:.92,top:.2,bottom:.6};
+      const safe = {left:.07,right:.93,top:.06,bottom:.94};
       hallPose = app.HallCamera.fit(THREE,world.buddhaBounds,camera.aspect,safe);
+      hallFitKey = '';
       if (started) followCamera(0,true);
       else { camera.fov = walkingFov; camera.clearViewOffset(); camera.updateProjectionMatrix(); welcomeCamera(); }
     }
@@ -102,9 +98,20 @@
       const changed = inside !== hallCameraActive;
       hallCameraActive = inside;
       if (inside) {
+        const key = `${Math.round(visitor.position.x*4)}:${Math.round(visitor.position.z*4)}`;
+        if (key !== hallFitKey) {
+          const p = visitor.position;
+          // Include the monk after clearing the doorway, so his feet remain in view.
+          const actor = p.z < -34.5 ? new THREE.Box3(
+            new THREE.Vector3(p.x-.6,p.y-.15,p.z-.6),
+            new THREE.Vector3(p.x+.6,p.y+2.1,p.z+.6)) : null;
+          hallPose = app.HallCamera.fit(THREE,world.buddhaBounds,camera.aspect,
+            {left:.07,right:.93,top:.06,bottom:.94},actor);
+          hallFitKey = key;
+        }
         desiredCamera.copy(hallPose.position); target.copy(hallPose.target);
         camera.fov = hallPose.fov;
-        camera.setViewOffset(camera.aspect,1,0,hallPose.offsetY,camera.aspect,1);
+        camera.setViewOffset(camera.aspect,1,hallPose.offsetX*camera.aspect,hallPose.offsetY,camera.aspect,1);
       } else {
         const portrait = camera.aspect < 0.8;
         desiredCamera.set(visitor.position.x,visitor.position.y+(portrait?4.9:4),visitor.position.z+(portrait?8.2:7.2));

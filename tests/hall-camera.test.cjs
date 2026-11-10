@@ -17,7 +17,7 @@ function makeWorld() {
 function cameraFor(pose,aspect) {
   const camera = new THREE.PerspectiveCamera(pose.fov,aspect,.1,700);
   camera.position.copy(pose.position);camera.lookAt(pose.target);
-  camera.setViewOffset(aspect,1,0,pose.offsetY,aspect,1);camera.updateMatrixWorld(true);
+  camera.setViewOffset(aspect,1,pose.offsetX*aspect,pose.offsetY,aspect,1);camera.updateMatrixWorld(true);
   return camera;
 }
 test('the entire Buddha and lotus fit above phone controls and below the header', () => {
@@ -43,4 +43,27 @@ test('the lintel and hanging lamp no longer hide the face or crown from the hall
     const blockers = hits.filter(hit => [0xdfe9ff,0xaaaaaa,0x3d2418,0x773c2c].includes(hit.object.material.color.getHex()));
     assert.equal(blockers.length,0,`face/crown obstructed at ${coords}`);
   }
+});
+
+test('the full monk and statue fit the dedicated scene viewport together', () => {
+  const {world} = makeWorld();
+  const safe = {left:.07,right:.93,top:.06,bottom:.94};
+  for (const [width,height] of [[375,547],[390,691],[320,415],[430,779],[844,237],[667,167]]) {
+    for (const x of [-8,0,8]) for (const z of [-35,-37,-39.3]) {
+      const actor = new THREE.Box3(new THREE.Vector3(x-.6,2.05,z-.6),new THREE.Vector3(x+.6,4.3,z+.6));
+      const pose = framing.fit(THREE,world.buddhaBounds,width/height,safe,actor);
+      const camera = cameraFor(pose,width/height);
+      for (const corner of [...framing.corners(THREE,world.buddhaBounds),...framing.corners(THREE,actor)]) {
+        const p = corner.project(camera), sx = (p.x+1)/2, sy = (1-p.y)/2;
+        assert.ok(sx >= safe.left-.002 && sx <= safe.right+.002 && sy >= safe.top-.002 && sy <= safe.bottom+.002,
+          `${width}x${height} monk at ${x},${z} clipped`);
+      }
+    }
+  }
+});
+
+test('the large white spherical ceiling ornament has been removed', () => {
+  const {scene} = makeWorld(); let fixtures = 0;
+  scene.traverse(object => { if (object.isMesh && object.material.color.getHex() === 0xdfe9ff) fixtures++; });
+  assert.equal(fixtures,0);
 });

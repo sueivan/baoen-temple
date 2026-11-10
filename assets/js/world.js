@@ -49,9 +49,7 @@ const win=cv(128,128,(g,W,Q)=>{g.fillStyle='#2a4fb0';g.fillRect(0,0,W,Q);g.strok
 for(const s of[-1,1])pln(win,5,3.4,s*10.5,y1+4.5,-46.85);
 const cp=t=>cv(64,320,(g,W,Q)=>{g.fillStyle='#1b1620';g.fillRect(0,0,W,Q);g.fillStyle='#e8c25a';g.font='bold 40px "Noto Serif TC",serif';g.textAlign='center';[...t].forEach((c,i)=>g.fillText(c,W/2,40+i*42))});
 for(const[s,t]of[[-1,'\u6cd5\u8f2a\u5e38\u8f49\u5b89\u5929\u4e0b'],[1,'\u4f5b\u65e5\u589e\u8f1d\u5229\u6709\u60c5']]){cyl(.55,.6,H,0x1b1620,s*8.6,y1+H/2,-35);pln(cp(t),.9,4.7,s*8.6,y1+4.4,-34.38)}
-{const cz=zB+8.9,cy=y1+H-1.6,bm=new THREE.MeshBasicMaterial({color:0xdfe9ff});cyl(.05,.05,1.6,0xaaaaaa,0,y1+H-.8,cz);
-const c0=new THREE.Mesh(new THREE.SphereGeometry(.55,12,10),bm);c0.position.set(0,cy,cz);S.add(c0);
-for(let i=0;i<8;i++){const a=i*Math.PI/4,o=new THREE.Mesh(new THREE.SphereGeometry(.3,10,8),bm);o.position.set(Math.cos(a),cy-.2,cz+Math.sin(a));S.add(o)}}
+// Interior lights are invisible; no ceiling fixture obscures the scene.
 const L1=new THREE.PointLight(0xffe0a8,1.4,45);L1.position.set(0,y1+6,-40);S.add(L1);const L2=new THREE.PointLight(0x7f9bff,.8,40);L2.position.set(0,y1+7,-36);S.add(L2);
 // Buddha + disciples
 const GL=0xd9a93a,GL2=0xf0cc66,GD=[GL,GL2,0xd2a238,0xdcb750],BL=0x2a4fa0,HR=0x1a2250;
@@ -65,8 +63,21 @@ for(let i=0;i<14;i++){const a=i/14*Math.PI*2;E(.8,GL2,Math.cos(a)*3.5,.5,Math.si
 E(2.6,GL,0,1.3,.2,1.45,.38,.95);E(2,0xc79428,0,1,1.1,1.4,.3,.6);
 cyl(1.15,1.7,2.8,GL,0,2.9,0,st);box(.9,2.6,.15,0xc03a2a,.3,3.1,1.25,st).rotation.z=-.5;
 E(.75,GL,-1.35,4,0);E(.75,GL,1.35,4,0);
-cyl(.45,.5,1.8,GL,1.8,3.1,.3,st).rotation.z=.3;E(.5,GL,1.9,2.1,.9,1,1.3,1);E(.4,GL2,1.6,1.6,1.4,1.1,.5,1.1);
-cyl(.45,.5,1.8,GL,-1.9,3.2,.4,st).rotation.z=-.3;cyl(.38,.45,1.5,GL,-2.1,4.3,1.1,st).rotation.x=-.6;E(.5,GL2,-2.1,5.2,1.6,1,1.2,.3);
+function limb(a,b,radius,parent,color){
+ const start=new THREE.Vector3(...a),end=new THREE.Vector3(...b),direction=end.clone().sub(start);
+ const mesh=add(new THREE.CylinderGeometry(radius,radius*1.12,direction.length(),12),mt(color),0,0,0,parent);
+ mesh.position.copy(start.add(end).multiplyScalar(.5));
+ mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction.normalize());return mesh;
+}
+// Continuous upper arms, elbows and wrists replace the disconnected cylinders.
+limb([1.35,4,.1],[1.85,2.85,.55],.38,st,GL);
+limb([1.85,2.85,.55],[1.5,1.85,1.25],.3,st,GL);
+E(.34,GL,1.85,2.85,.55);E(.33,GL2,1.3,1.7,1.4,1.3,.45,1);
+limb([-1.35,4,.1],[-1.75,3.25,.7],.36,st,GL);
+limb([-1.75,3.25,.7],[-1.8,4.3,1.15],.27,st,GL);
+E(.32,GL,-1.75,3.25,.7);E(.31,GL2,-1.8,4.58,1.15,.85,1.15,.4);
+for(let i=0;i<4;i++)cyl(.055,.065,.4,GL2,-1.8+(i-1.5)*.115,4.98,1.15,st);
+E(.12,GL2,-1.5,4.55,1.15,.8,1.6,.65).rotation.z=-.45;
 cyl(.5,.6,.6,GL,0,4.5,0,st);E(.95,GL2,0,5.4,0,1,1.1,1);
 for(const s of[-1,1]){E(.2,GL2,s*.95,5.3,0,.8,2.2,.6);box(.3,.05,.05,0x4a2a10,s*.35,5.5,.9,st)}
 E(.97,HR,0,5.75,-.05,1,.7,1);E(.5,HR,0,6.5,0);sph(.07,0xffffff,0,5.65,.93,st);E(.12,GL2,0,5.3,.98);box(.3,.07,.06,0xb04030,0,5,.9,st);
@@ -76,10 +87,24 @@ const o=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.2,bevelEnabled:false
 arch(1,GL,-2.4);arch(.88,BL,-2.2);arch(.72,GL2,-2);gild(st);
 // Capture the complete statue and lotus before static meshes are merged.
 buddhaBounds=new THREE.Box3().setFromObject(st);
-function disc(px,c,old){const g=new THREE.Group();g.position.set(px,y1+1,-42.2);S.add(g);
-const m=new THREE.Mesh(new THREE.LatheGeometry([[.001,0],[1,0],[.85,1.6],[.75,3.1],[.5,3.8],[.001,4.1]].map(p=>new THREE.Vector2(p[0],p[1])),20),new THREE.MeshLambertMaterial({color:c,side:THREE.DoubleSide}));m.castShadow=true;g.add(m);
-sph(.5,GL2,0,4.5,0,g,1.1);sph(.22,GL2,0,3.1,.7,g);for(const s of[-1,1])sph(.05,0x2a1a10,s*.18,4.55,.46,g);
-if(old)box(.5,.05,.05,0xffffff,0,4.72,.45,g);gild(g)}
+function disc(px,c,old){
+ const g=new THREE.Group();g.position.set(px,y1+1,-42.2);S.add(g);
+ const robe=old?0xa77a35:0xbd8c3b;
+ const shape=[[.001,0],[.8,0],[.83,.25],[.7,2],[.64,3.05],[.4,3.45],[.001,3.5]];
+ const m=new THREE.Mesh(new THREE.LatheGeometry(shape.map(p=>new THREE.Vector2(...p)),24),mt(robe));g.add(m);
+ cyl(.22,.25,.42,GL2,0,3.58,0,g);sph(.43,GL2,0,4.05,0,g,1.1);
+ for(const side of[-1,1]){
+  limb([side*.55,3.15,.05],[side*.7,2.5,.45],.2,g,robe);
+  limb([side*.7,2.5,.45],[side*.1,2.9,.83],.16,g,robe);
+  sph(.16,GL2,side*.1,2.97,.85,g,1.6);
+  sph(.055,0x44301e,side*.15,4.08,.4,g);
+  sph(.09,GL2,side*.43,4.02,.03,g,1.4);
+  if(old)box(.15,.025,.025,0xe9dbc1,side*.15,4.23,.39,g);
+ }
+ sph(.065,GL2,0,3.99,.45,g);box(.16,.025,.025,0x8b5929,0,3.88,.42,g);
+ box(.22,2.5,.05,0x8b572c,.1,1.55,.72,g).rotation.z=-.1;
+ gild(g);
+}
 disc(-6.3,0xd2a238,1);disc(6.3,0xdcb750,0);
 })();
 // side corridors
