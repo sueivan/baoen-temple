@@ -10,6 +10,7 @@
   }
   function canWalk(x, z, doorOpen) {
     if (!Number.isFinite(x) || !Number.isFinite(z) || z > 88 || z < -39.4) return false;
+    if (Math.hypot(x+6,z+15)<2.6) return false;
     const ax = Math.abs(x);
     if (z < -21) {
       if (z >= -26) return ax <= 5.1;

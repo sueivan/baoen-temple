@@ -27,13 +27,19 @@ test('scene builds with the bundled Three.js, finite geometry and efficient batc
   assert.ok(world.batching.after < world.batching.before / 5);
   assert.equal(world.avatar.position.z,67);
 });
-test('doors open on approach, remain open inside, and reset at the gate', () => {
+test('doors remain open even before arrival and after returning to the gate', () => {
   const {world} = makeWorld();
   for (let frame=0;frame<60;frame++) world.updateDoors(1/30,{x:0,z:-28});
   assert.ok(world.doorOpen > .99);
   for (let frame=0;frame<60;frame++) world.updateDoors(1/30,{x:0,z:-39.4});
   assert.ok(world.doorOpen > .99);
-  world.resetDoors(); assert.equal(world.doorOpen,0);
+  world.resetDoors(); assert.equal(world.doorOpen,1);
   for (let frame=0;frame<60;frame++) world.updateDoors(1/30,{x:0,z:67});
-  assert.equal(world.doorOpen,0);
+  assert.equal(world.doorOpen,1);
+});
+test('incense smoke and worshippers animate without invalid positions', () => {
+ const {scene,world}=makeWorld();
+ for(let i=0;i<90;i++)world.updateAtmosphere(1/30,false);
+ scene.traverse(o=>{for(const value of o.position.toArray())assert.ok(Number.isFinite(value));});
+ assert.equal(world.doorOpen,1);
 });

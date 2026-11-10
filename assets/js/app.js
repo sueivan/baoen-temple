@@ -21,17 +21,19 @@
     sun.shadow.bias = -0.001;
     const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});
     renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .95;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     host.appendChild(renderer.domElement);
     renderer.domElement.setAttribute('aria-hidden','true');
     renderer.domElement.addEventListener('webglcontextlost', e => {
-      e.preventDefault(); input && input.reset(); cancelAnimationFrame(frameId); sound.pause();
+      e.preventDefault(); input && input.reset(); smoothX=smoothZ=0; cancelAnimationFrame(frameId); sound.pause();
       $('fatal-message').textContent = t('contextLost'); app.showFailure();
     });
     const camera = new THREE.PerspectiveCamera(61,1,0.1,700);
     const world = app.createWorld(scene), visitor = world.avatar;
     const desiredCamera = new THREE.Vector3(), target = new THREE.Vector3();
     let frameInterval = 1000/30;
+    let smoothX=0,smoothZ=0;
     let hallPose, hallCameraActive = false, walkingFov = 65, hallFitKey = '';
     const t = key => app.I18N[state.lang][key] || key;
     const hasModal = () => dialogs.some(dialog => dialog.open);
@@ -114,7 +116,7 @@
         camera.setViewOffset(camera.aspect,1,hallPose.offsetX*camera.aspect,hallPose.offsetY,camera.aspect,1);
       } else {
         const portrait = camera.aspect < 0.8;
-        desiredCamera.set(visitor.position.x,visitor.position.y+(portrait?4.9:4),visitor.position.z+(portrait?8.2:7.2));
+        desiredCamera.set(visitor.position.x,visitor.position.y+(visitor.position.z < -26 ? 2 : (portrait?4.9:4)),visitor.position.z+(portrait?8.2:7.2));
         target.set(visitor.position.x,visitor.position.y+1.25,visitor.position.z-4);
         camera.fov = walkingFov; camera.clearViewOffset();
       }
@@ -133,12 +135,12 @@
     }
     function goHome() {
       if (!started) return;
-      input.reset(); resetPractice(); visitor.position.set(0,0,67); visitor.rotation.y = angle = walkingTime = 0;
+      input.reset(); smoothX=smoothZ=0; resetPractice(); visitor.position.set(0,0,67); visitor.rotation.y = angle = walkingTime = 0;
       world.resetDoors(); followCamera(0,true); setZone(); toast(t('homeDone'));
     }
     function startPractice(name) {
       if (!canMove() || !app.State.actions.includes(name)) return;
-      input.reset(); activateSound();
+      input.reset(); smoothX=smoothZ=0; activateSound();
       action = {name,time:0,lastBeat:-1,duration:{palm:2.3,bow:2.8,wood:3,beads:3}[name]};
       world.woodfish.visible = name === 'wood'; world.handBeads.visible = name === 'beads';
       practiceButtons.forEach(button => { button.disabled = true; button.setAttribute('aria-pressed',String(button.dataset.action === name)); });
@@ -170,7 +172,7 @@
       if (time >= duration) resetPractice();
     }
     function openDialog(id) {
-      input && input.reset();
+      input && input.reset(); smoothX=smoothZ=0;
       dialogs.forEach(dialog => { if (dialog.open) dialog.close(); });
       $(id).showModal();
     }
@@ -178,7 +180,7 @@
     $('enter').onclick = () => {
       if (!app.ready || app.failed) return;
       started = true; document.body.dataset.stage = 'explore';
-      input.reset(); followCamera(0,true); host.focus({preventScroll:true}); activateSound(); toast(t('ready'));
+      input.reset(); smoothX=smoothZ=0; followCamera(0,true); host.focus({preventScroll:true}); activateSound(); toast(t('ready'));
     };
     $('home').onclick = goHome;
     $('sound').onclick = async () => {
@@ -197,7 +199,7 @@
         const box = dialog.getBoundingClientRect();
         if (e.clientX < box.left || e.clientX > box.right || e.clientY < box.top || e.clientY > box.bottom) dialog.close();
       });
-      dialog.addEventListener('close',() => { input.reset(); $('settings-button').focus({preventScroll:true}); });
+      dialog.addEventListener('close',() => { input.reset(); smoothX=smoothZ=0; $('settings-button').focus({preventScroll:true}); });
     });
     practiceButtons.forEach(button => { button.onclick = () => startPractice(button.dataset.action); });
     const motionChanged = () => { reduced = reducedQuery.matches; $('motion-note').hidden = !reduced; };
@@ -212,38 +214,40 @@
       const paused = hasModal();
       let moving = false, vx = 0, vz = 0;
       if (canMove()) {
-        const direction = input.read(), magnitude = Math.hypot(direction.x,direction.z);
+        const raw=input.read(), blend=1-Math.exp(-dt*14);
+        smoothX+=(raw.x-smoothX)*blend;smoothZ+=(raw.z-smoothZ)*blend;
+        const direction={x:smoothX,z:smoothZ}, magnitude=Math.hypot(smoothX,smoothZ);
         if (magnitude > 0.12) {
           const scale = Math.min(magnitude,1)/magnitude;
           vx = direction.x*scale; vz = direction.z*scale;
           const beforeX = visitor.position.x, beforeZ = visitor.position.z;
-          const next = app.Navigation.move({x:beforeX,z:beforeZ},vx*6.8*dt,vz*6.8*dt,world.doorOpen);
+          const next = app.Navigation.move({x:beforeX,z:beforeZ},vx*4.2*dt,vz*4.2*dt,world.doorOpen);
           visitor.position.set(next.x,app.Navigation.heightAt(next.z,next.x),next.z);
           moving = Math.hypot(next.x-beforeX,next.z-beforeZ) > 0.001;
           if (moving) {
             const desired = Math.atan2(-vx,-vz), delta = desired-angle;
             angle += Math.atan2(Math.sin(delta),Math.cos(delta))*Math.min(1,dt*12);
-            visitor.rotation.y = angle; walkingTime += dt*10;
+            visitor.rotation.y = angle; walkingTime += dt*7;
           }
         }
       }
-      if (!moving) walkingTime = 0;
-      const swing = moving && !reduced ? Math.sin(walkingTime)*0.55 : 0;
+      if (!moving) walkingTime *= Math.exp(-dt*9);
+      const swing = moving && !reduced ? Math.sin(walkingTime)*0.28 : 0;
       world.legs[0].rotation.x = swing; world.legs[1].rotation.x = -swing;
       if (!paused) {
-        world.body.rotation.x = 0; world.body.position.y = 0.85+(moving && !reduced ? Math.abs(Math.sin(walkingTime))*0.055 : 0);
+        world.body.rotation.x = 0; world.body.position.y = world.bodyRestY+(moving && !reduced ? Math.abs(Math.sin(walkingTime))*0.018 : 0);
         world.arms[0].rotation.set(-swing*0.7,0,0.08); world.arms[1].rotation.set(swing*0.7,0,-0.08);
-        animatePractice(dt); world.updateDoors(dt,visitor.position);
+        animatePractice(dt); world.updateDoors(dt,visitor.position); world.updateAtmosphere(dt,reduced);
       }
       if (started) { followCamera(dt,false); setZone(); }
       renderer.render(scene,camera);
     }
     document.addEventListener('visibilitychange',() => {
-      input.reset(); cancelAnimationFrame(frameId); last = 0;
+      input.reset(); smoothX=smoothZ=0; cancelAnimationFrame(frameId); last = 0;
       if (document.hidden) sound.pause();
       else { if (started && state.sound) activateSound(); frameId = requestAnimationFrame(frame); }
     });
-    window.addEventListener('pagehide',() => { input.reset(); sound.pause(); });
+    window.addEventListener('pagehide',() => { input.reset(); smoothX=smoothZ=0; sound.pause(); });
     quality(); applyLanguage();
     app.ready = true; $('enter').disabled = false; $('enter-text').textContent = t('enter');
     frameId = requestAnimationFrame(frame);
