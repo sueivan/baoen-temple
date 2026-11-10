@@ -9,7 +9,7 @@ test('every HTML asset uses a repository-relative path and exists',()=>{
   const refs=[...html.matchAll(/(?:src|href)="([^"#]+)"/g)].map(m=>m[1]);
   for(const ref of refs){
     assert.ok(ref.startsWith('./'),ref);
-    assert.ok(fs.existsSync(path.join(base,ref)),ref);
+    assert.ok(fs.existsSync(path.join(base,ref.split('?')[0])),ref);
   }
   assert.ok(html.includes('lang="zh-Hant"'));
 });
@@ -36,6 +36,6 @@ test('the offline worker precaches a complete set of same-origin local files',()
   vm.runInNewContext(source+'\nglobalThis.files=FILES;',scope);
   for(const file of scope.files){
     assert.ok(file.startsWith('./'));
-    assert.ok(fs.existsSync(path.join(base,file)),file);
+    assert.ok(fs.existsSync(path.join(base,file.split('?')[0])),file);
   }
 });

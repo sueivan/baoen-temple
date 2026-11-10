@@ -43,10 +43,11 @@
       const pointer = this.pointer;
       if (!pointer || pointer.id !== e.pointerId) return;
       const dx = e.clientX - pointer.x, dz = e.clientY - pointer.y;
-      const radius = pointer.fixed ? 38 : 60;
+      const radius = pointer.fixed ? this.pad.getBoundingClientRect().width * 0.37 : 60;
       const length = Math.hypot(dx,dz), scale = Math.min(length,radius) / Math.max(length,1);
       this.x = dx * scale / radius; this.z = dz * scale / radius;
-      const transform = `translate(${this.x*26}px,${this.z*26}px)`;
+      const travel = 20;
+      const transform = `translate(${this.x*travel}px,${this.z*travel}px)`;
       this.knob.style.transform = transform;
       this.joystick.firstElementChild.style.transform = transform;
     }

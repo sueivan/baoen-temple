@@ -1,12 +1,12 @@
 /* Bump the cache name whenever a release changes the app's files. */
 const CACHE_PREFIX = 'baoen-temple-';
-const CACHE = CACHE_PREFIX + '2.0.0';
+const CACHE = CACHE_PREFIX + '2.0.1';
 const FILES = [
   './', './index.html', './manifest.webmanifest',
   './assets/favicon.svg', './assets/icon-192.png', './assets/icon-512.png', './assets/icon-maskable.png',
-  './assets/css/style.css', './assets/vendor/three.r128.min.js',
+  './assets/css/style.css?v=2.0.1', './assets/vendor/three.r128.min.js',
   './assets/js/boot.js', './assets/js/state.js', './assets/js/navigation.js',
-  './assets/js/i18n.js', './assets/js/world.js', './assets/js/audio.js', './assets/js/input.js', './assets/js/app.js'
+  './assets/js/i18n.js', './assets/js/world.js', './assets/js/audio.js', './assets/js/input.js?v=2.0.1', './assets/js/app.js'
 ];
 const allowed = new Set(FILES.map(path => new URL(path,self.location.href).href));
 self.addEventListener('install', event => {
