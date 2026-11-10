@@ -3,6 +3,7 @@
 'use strict';
 root.Temple.createWorld=function(scene){
 const S=new THREE.Group();scene.add(S);
+let buddhaBounds;
 let seed=7;const rnd=()=>(seed=seed*16807%2147483647)/2147483647;
 const mats={};const mt=c=>mats[c]||(mats[c]=new THREE.MeshLambertMaterial({color:c}));
 function add(g,m,x,y,z,p){const o=new THREE.Mesh(g,m);o.position.set(x,y,z);o.castShadow=o.receiveShadow=true;(p||S).add(o);return o}
@@ -48,7 +49,7 @@ const win=cv(128,128,(g,W,Q)=>{g.fillStyle='#2a4fb0';g.fillRect(0,0,W,Q);g.strok
 for(const s of[-1,1])pln(win,5,3.4,s*10.5,y1+4.5,-46.85);
 const cp=t=>cv(64,320,(g,W,Q)=>{g.fillStyle='#1b1620';g.fillRect(0,0,W,Q);g.fillStyle='#e8c25a';g.font='bold 40px "Noto Serif TC",serif';g.textAlign='center';[...t].forEach((c,i)=>g.fillText(c,W/2,40+i*42))});
 for(const[s,t]of[[-1,'\u6cd5\u8f2a\u5e38\u8f49\u5b89\u5929\u4e0b'],[1,'\u4f5b\u65e5\u589e\u8f1d\u5229\u6709\u60c5']]){cyl(.55,.6,H,0x1b1620,s*8.6,y1+H/2,-35);pln(cp(t),.9,4.7,s*8.6,y1+4.4,-34.38)}
-{const cz=zB+2.5,cy=y1+H-1.6,bm=new THREE.MeshBasicMaterial({color:0xdfe9ff});cyl(.05,.05,1.6,0xaaaaaa,0,y1+H-.8,cz);
+{const cz=zB+8.9,cy=y1+H-1.6,bm=new THREE.MeshBasicMaterial({color:0xdfe9ff});cyl(.05,.05,1.6,0xaaaaaa,0,y1+H-.8,cz);
 const c0=new THREE.Mesh(new THREE.SphereGeometry(.55,12,10),bm);c0.position.set(0,cy,cz);S.add(c0);
 for(let i=0;i<8;i++){const a=i*Math.PI/4,o=new THREE.Mesh(new THREE.SphereGeometry(.3,10,8),bm);o.position.set(Math.cos(a),cy-.2,cz+Math.sin(a));S.add(o)}}
 const L1=new THREE.PointLight(0xffe0a8,1.4,45);L1.position.set(0,y1+6,-40);S.add(L1);const L2=new THREE.PointLight(0x7f9bff,.8,40);L2.position.set(0,y1+7,-36);S.add(L2);
@@ -73,6 +74,8 @@ add(new THREE.CylinderGeometry(1.9,1.9,.1,32),mt(BL),0,5.4,-1.2,st).rotation.x=M
 function arch(sc,c,pz){const sh=new THREE.Shape();sh.moveTo(-3.4*sc,0);sh.bezierCurveTo(-3.8*sc,4.2*sc,-1.6*sc,5.8*sc,0,7.4*sc);sh.bezierCurveTo(1.6*sc,5.8*sc,3.8*sc,4.2*sc,3.4*sc,0);sh.lineTo(-3.4*sc,0);
 const o=new THREE.Mesh(new THREE.ExtrudeGeometry(sh,{depth:.2,bevelEnabled:false}),mt(c));o.position.set(0,.2,pz);st.add(o)}
 arch(1,GL,-2.4);arch(.88,BL,-2.2);arch(.72,GL2,-2);gild(st);
+// Capture the complete statue and lotus before static meshes are merged.
+buddhaBounds=new THREE.Box3().setFromObject(st);
 function disc(px,c,old){const g=new THREE.Group();g.position.set(px,y1+1,-42.2);S.add(g);
 const m=new THREE.Mesh(new THREE.LatheGeometry([[.001,0],[1,0],[.85,1.6],[.75,3.1],[.5,3.8],[.001,4.1]].map(p=>new THREE.Vector2(p[0],p[1])),20),new THREE.MeshLambertMaterial({color:c,side:THREE.DoubleSide}));m.castShadow=true;g.add(m);
 sph(.5,GL2,0,4.5,0,g,1.1);sph(.22,GL2,0,3.1,.7,g);for(const s of[-1,1])sph(.05,0x2a1a10,s*.18,4.55,.46,g);
@@ -182,7 +185,7 @@ box(.05,.07,.33,0x35271d,0,.18,-.03,woodfish);
 const handBeads=new THREE.Mesh(new THREE.TorusGeometry(.19,.035,6,12),mt(0x6b3f22));
 handBeads.position.set(0,.25,-.6);handBeads.visible=false;B.add(handBeads);
 return {
-  avatar:mk,body:B,legs,arms,woodfish,handBeads,batching,
+  avatar:mk,body:B,legs,arms,woodfish,handBeads,batching,buddhaBounds,
   get doorOpen(){return doorOpen},
   updateDoors(dt,position){
     const near=Math.hypot(position.x,position.z+31)<8 || position.z < -30.4;

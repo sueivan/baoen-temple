@@ -32,6 +32,7 @@
     const world = app.createWorld(scene), visitor = world.avatar;
     const desiredCamera = new THREE.Vector3(), target = new THREE.Vector3();
     let frameInterval = 1000/30;
+    let hallPose, hallCameraActive = false, walkingFov = 65;
     const t = key => app.I18N[state.lang][key] || key;
     const hasModal = () => dialogs.some(dialog => dialog.open);
     const canMove = () => started && !action && !hasModal() && !app.failed && !document.hidden;
@@ -74,8 +75,17 @@
     function resize() {
       const width = Math.max(1,host.clientWidth), height = Math.max(1,host.clientHeight);
       renderer.setSize(width,height,false); camera.aspect = width/height;
-      camera.fov = camera.aspect < 0.7 ? 65 : 58; camera.updateProjectionMatrix();
-      if (!started) welcomeCamera();
+      walkingFov = camera.aspect < 0.7 ? 65 : 58;
+      const rect = host.getBoundingClientRect();
+      const top = Math.max(document.querySelector('.header').getBoundingClientRect().bottom,$('zone').getBoundingClientRect().bottom)-rect.top+12;
+      const bottom = Math.min(...['.move-pad','.home-button','.practices','.walk-hint'].map(selector =>
+        document.querySelector(selector).getBoundingClientRect().top))-rect.top-14;
+      const safe = bottom > top+40
+        ? {left:.08,right:.92,top:top/height,bottom:bottom/height}
+        : {left:.08,right:.92,top:.2,bottom:.6};
+      hallPose = app.HallCamera.fit(THREE,world.buddhaBounds,camera.aspect,safe);
+      if (started) followCamera(0,true);
+      else { camera.fov = walkingFov; camera.clearViewOffset(); camera.updateProjectionMatrix(); welcomeCamera(); }
     }
     function quality() {
       const low = state.quality === 'low';
@@ -88,12 +98,23 @@
       camera.position.set(45,40,90); camera.lookAt(0,3,-12);
     }
     function followCamera(dt,snap) {
-      const portrait = camera.aspect < 0.8;
-      desiredCamera.set(visitor.position.x,visitor.position.y+(portrait?4.9:4),visitor.position.z+(portrait?8.2:7.2));
-      const amount = snap || reduced ? 1 : 1-Math.exp(-dt*5);
-      camera.position.lerp(desiredCamera,amount);
-      target.set(visitor.position.x,visitor.position.y+1.25,visitor.position.z-4);
-      camera.lookAt(target);
+      const inside = visitor.position.z < (hallCameraActive ? -31.6 : -31.8);
+      const changed = inside !== hallCameraActive;
+      hallCameraActive = inside;
+      if (inside) {
+        desiredCamera.copy(hallPose.position); target.copy(hallPose.target);
+        camera.fov = hallPose.fov;
+        camera.setViewOffset(camera.aspect,1,0,hallPose.offsetY,camera.aspect,1);
+      } else {
+        const portrait = camera.aspect < 0.8;
+        desiredCamera.set(visitor.position.x,visitor.position.y+(portrait?4.9:4),visitor.position.z+(portrait?8.2:7.2));
+        target.set(visitor.position.x,visitor.position.y+1.25,visitor.position.z-4);
+        camera.fov = walkingFov; camera.clearViewOffset();
+      }
+      camera.updateProjectionMatrix();
+      // Change views at the doorway so the camera does not linger behind the lintel.
+      const amount = snap || changed || reduced ? 1 : 1-Math.exp(-dt*5);
+      camera.position.lerp(desiredCamera,amount); camera.lookAt(target);
     }
     async function activateSound() {
       try { await sound.enable(state.sound); sound.setAmbient(state.sound && state.ambient); return true; }
